@@ -37,9 +37,12 @@ cd climate-extreme-analyzer
 2. Estrutura de Dados
 
 Os dados climáticos devem conter pelo menos uma coluna date (formato datetime) ou year, e colunas para variáveis como temperature e precipitation. Exemplo de CSV:
+```
 date,temperature,precipitation
 2000-01-01,20.5,2.3
 2000-01-02,21.0,0.0
+```
+
 ...
 
 3. Exemplo de Código
@@ -49,10 +52,10 @@ from climate_extreme_analyzer import ClimateExtremeAnalyzer
 import pandas as pd
 ```
 
-# Inicializar o analisador
+3.1 Inicializar o analisador
 analyzer = ClimateExtremeAnalyzer()
 
-# Carregar dados (exemplo com DataFrame)
+3.2 Carregar dados (exemplo com DataFrame)
 ```
 data = pd.DataFrame({
     'date': pd.date_range('2000-01-01', periods=100),
@@ -61,12 +64,12 @@ data = pd.DataFrame({
 analyzer.load_data(data_df=data)
 ```
 
-# Gerar relatório completo para temperatura e precipitação
+3.3 Gerar relatório completo para temperatura e precipitação
 ```
 report = analyzer.generate_climate_report(variables=['temperature'], save_dir='./climate_plots')
 ```
 
-# Exportar resultados
+3.4 Exportar resultados
 ```
 analyzer.export_results(report, filename='results/climate_analysis')
 ```
