@@ -53,7 +53,10 @@ import pandas as pd
 ```
 
 3.1 Inicializar o analisador
+```
 analyzer = ClimateExtremeAnalyzer()
+```
+
 
 3.2 Carregar dados (exemplo com DataFrame)
 ```
@@ -74,7 +77,7 @@ report = analyzer.generate_climate_report(variables=['temperature'], save_dir='.
 analyzer.export_results(report, filename='results/climate_analysis')
 ```
 
-4. Saídas
+# Saídas
 
 Gráficos: Salvos no diretório especificado (padrão: ./climate_plots).
 Relatório CSV: Resumo dos resultados exportado para o diretório especificado (ex.: results/climate_analysis_summary.csv).
