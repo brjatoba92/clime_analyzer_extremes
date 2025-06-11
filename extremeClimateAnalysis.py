@@ -257,3 +257,86 @@ class ClimateExtremeAnalyzer:
             }
         
         return projections
+    
+    def generate_risk_assessment(self, variable='temperature'):
+        """
+        Gera avaliação de risco baseada em extremos e tendências
+        """
+        # Calcular períodos de retorno
+        return_levels = self.calculate_return_periods(variable)
+        
+        # Análise de tendência
+        if variable not in self.trends:
+            self.mann_kendall_test(variable)
+        
+        trend_info = self.trends[variable]
+        
+        # Classificação de risco
+        if trend_info['significant']:
+            if trend_info['sens_slope'] > 0:
+                trend_risk = "Alto" if abs(trend_info['sens_slope']) > 0.1 else "Médio"
+            else:
+                trend_risk = "Baixo"
+        else:
+            trend_risk = "Baixo"
+        
+        # Risco de extremos baseado na variabilidade
+        current_std = self.data.groupby('year')[variable].mean().std()
+        if current_std > self.data[variable].std() * 0.8:
+            extreme_risk = "Alto"
+        elif current_std > self.data[variable].std() * 0.5:
+            extreme_risk = "Médio"
+        else:
+            extreme_risk = "Baixo"
+        
+        risk_assessment = {
+            'variable': variable,
+            'trend_risk': trend_risk,
+            'extreme_risk': extreme_risk,
+            'return_levels': return_levels,
+            'trend_info': trend_info,
+            'recommendations': self._generate_recommendations(trend_risk, extreme_risk, variable)
+        }
+        
+        return risk_assessment
+    
+    def _generate_recommendations(self, trend_risk, extreme_risk, variable):
+        """
+        Gera recomendações baseadas no nível de risco
+        """
+        recommendations = []
+        
+        if variable == 'temperature':
+            if trend_risk == "Alto":
+                recommendations.extend([
+                    "Implementar sistemas de resfriamento eficientes",
+                    "Desenvolver planos de adaptação ao calor extremo",
+                    "Monitorar impactos na saúde pública"
+                ])
+            
+            if extreme_risk == "Alto":
+                recommendations.extend([
+                    "Estabelecer sistemas de alerta precoce",
+                    "Criar abrigos climatizados para população vulnerável",
+                    "Revisar códigos de construção para resistir a temperaturas extremas"
+                ])
+        
+        elif variable == 'precipitation':
+            if trend_risk == "Alto":
+                recommendations.extend([
+                    "Melhorar sistemas de drenagem urbana",
+                    "Implementar infraestrutura verde",
+                    "Desenvolver reservatórios de contenção"
+                ])
+            
+            if extreme_risk == "Alto":
+                recommendations.extend([
+                    "Criar sistemas de alerta de enchentes",
+                    "Estabelecer rotas de evacuação",
+                    "Implementar seguros contra desastres naturais"
+                ])
+        
+        if not recommendations:
+            recommendations.append("Manter monitoramento contínuo das condições climáticas")
+        
+        return recommendations
