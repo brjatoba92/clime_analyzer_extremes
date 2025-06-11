@@ -5,10 +5,11 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy import stats
 from scipy.stats import genextreme, norm
+import os
 import warnings
 warnings.filterwarnings('ignore')
 
-#Mann-Kendall
+# Mann-Kendall
 try:
     from pymannkendall import original_test as mk_test
 except:
@@ -68,6 +69,11 @@ class ClimateExtremeAnalyzer:
         else:
             # Gerar dados sintéticos para demonstração
             self.generate_synthetic_data()
+        # Verificar e criar coluna 'year' se não existir
+        if 'date' in self.data.columns and 'year' not in self.data.columns:
+            self.data['year'] = self.data['date'].dt.year
+        elif 'year' not in self.data.columns:
+            raise ValueError("Os dados devem conter uma coluna 'date' ou 'year'")
             
         print(f"Dados carregados: {len(self.data)} registros")
         return self.data
@@ -341,9 +347,13 @@ class ClimateExtremeAnalyzer:
         
         return recommendations
     
-    def plot_extreme_analysis(self, variable='temperature', figsize=(15, 12)):
+    def plot_extreme_analysis(self, variable='temperature', figsize=(15, 12), save_path=None):
         """
         Cria visualizações abrangentes da análise de extremos
+        Parâmetros:
+            variable: variável a ser analisada
+            figsize: tamanho da figura
+            save_path: caminho para salvar a figura. Se None, mostra na tela
         """
         fig, axes = plt.subplots(2, 3, figsize=figsize)
         fig.suptitle(f'Análise de Extremos Climáticos - {variable.title()}', fontsize=16, fontweight='bold')
@@ -452,12 +462,26 @@ class ClimateExtremeAnalyzer:
         plt.colorbar(im, ax=ax6, shrink=0.8)
         
         plt.tight_layout()
-        plt.show()
+        
+        if save_path is not None:
+            # Criar diretório se não existir
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            plt.close()  # Fecha a figura para liberar memória
+            print(f"Gráfico salvo em: {save_path}")
+        else:
+            plt.show()
     
-    def generate_climate_report(self, variables=['temperature', 'precipitation']):
+    def generate_climate_report(self, variables=['temperature', 'precipitation'], save_dir='./climate_plots'):
         """
-        Gera relatório completo de análise climática
+        Gera relatório completo de análise climática e salva os gráficos
+        Parâmetros:
+            variables: lista de variáveis para analisar
+            save_dir: diretório para salvar os gráficos
         """
+        # Criar diretório se não existir
+        os.makedirs(save_dir, exist_ok=True)
+        
         report = {
             'data_period': f"{self.data['year'].min()} - {self.data['year'].max()}",
             'total_records': len(self.data),
@@ -495,8 +519,9 @@ class ClimateExtremeAnalyzer:
                 'risk_assessment': risk_assessment
             }
             
-            # Gerar gráficos
-            self.plot_extreme_analysis(variable)
+            # Gerar e salvar gráficos
+            filename = f"{save_dir}/{variable}_analysis.png"
+            self.plot_extreme_analysis(variable, save_path=filename)
         
         return report
     
@@ -506,11 +531,11 @@ class ClimateExtremeAnalyzer:
         """
         # Criar DataFrame com resumo dos resultados
         summary_data = []
-        
+    
         for variable, analysis in report['analyses'].items():
             trend = analysis['trend_analysis']
             risk = analysis['risk_assessment']
-            
+        
             summary_data.append({
                 'Variable': variable,
                 'Trend': trend['trend'],
@@ -521,11 +546,27 @@ class ClimateExtremeAnalyzer:
                 'Return_50yr': analysis['return_levels'][50],
                 'Return_100yr': analysis['return_levels'][100]
             })
-        
+    
         summary_df = pd.DataFrame(summary_data)
-        summary_df.to_csv(f'{filename}_summary.csv', index=False)
-        
-        print(f"\nRelatório exportado para {filename}_summary.csv")
+    
+        # Garantir que o nome do arquivo não tenha diretório vazio
+        if not filename:
+            filename = 'climate_analysis_report'  # Valor padrão se filename for vazio
+    
+        # Extrair o diretório do caminho completo
+        dir_path = os.path.dirname(filename)
+    
+        # Criar diretório apenas se houver um caminho de diretório
+        if dir_path and not os.path.exists(dir_path):
+            os.makedirs(dir_path, exist_ok=True)
+    
+        # Adicionar sufixo se não estiver presente
+        if not filename.endswith('_summary.csv'):
+            filename = f"{filename}_summary.csv"
+    
+        summary_df.to_csv(filename, index=False)
+    
+        print(f"\nRelatório exportado para {filename}")
         print("\nRESUMO EXECUTIVO:")
         print(summary_df.to_string(index=False))
     
@@ -538,6 +579,11 @@ if __name__ == "__main__":
         # Criar analisador
         print("\n1️⃣ Inicializando analisador...")
         analyzer = ClimateExtremeAnalyzer()
+        data = pd.DataFrame({
+            'date': pd.date_range('2000-01-01', periods=100),
+            'temperature': np.random.normal(20, 5, 100)
+        })
+        analyzer.load_data(data_df=data)  # Vai criar a coluna 'year' automaticamente
         
         # Carregar dados (sintéticos para demonstração)
         print("\n2️⃣ Carregando dados climáticos...")
@@ -623,11 +669,11 @@ if __name__ == "__main__":
         
         # Gerar relatório completo
         print(f"\n6️⃣ Gerando relatório completo...")
-        report = analyzer.generate_climate_report(variables_to_analyze)
+        report = analyzer.generate_climate_report(variables_to_analyze, save_dir='./climate_plots')
         
         # Exportar resultados
         print(f"\n7️⃣ Exportando resultados...")
-        analyzer.export_results(report, 'analise_climatica_completa')
+        analyzer.export_results(report, 'results/analise_climatica_completa')
         
         # Resumo executivo final
         print("\n" + "=" * 60)
@@ -668,7 +714,7 @@ if __name__ == "__main__":
         
         print(f"\n✅ ANÁLISE COMPLETA FINALIZADA COM SUCESSO!")
         print(f"📄 Relatório detalhado salvo em: 'analise_climatica_completa_summary.csv'")
-        print("🎨 Gráficos de análise foram gerados e exibidos.")
+        print("🎨 Gráficos de análise foram salvos no diretório: './climate_plots'")
         
     except Exception as e:
         print(f"\n❌ ERRO durante a execução: {str(e)}")
