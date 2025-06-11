@@ -340,3 +340,117 @@ class ClimateExtremeAnalyzer:
             recommendations.append("Manter monitoramento contínuo das condições climáticas")
         
         return recommendations
+    
+    def plot_extreme_analysis(self, variable='temperature', figsize=(15, 12)):
+        """
+        Cria visualizações abrangentes da análise de extremos
+        """
+        fig, axes = plt.subplots(2, 3, figsize=figsize)
+        fig.suptitle(f'Análise de Extremos Climáticos - {variable.title()}', fontsize=16, fontweight='bold')
+        
+        # 1. Serie temporal com tendência
+        ax1 = axes[0, 0]
+        annual_data = self.data.groupby('year')[variable].mean()
+        ax1.plot(annual_data.index, annual_data.values, 'b-', alpha=0.7, label='Dados anuais')
+        
+        # Linha de tendência
+        if variable in self.trends:
+            trend_line = self.trends[variable]['sens_slope'] * (annual_data.index - annual_data.index[0]) + annual_data.values[0]
+            ax1.plot(annual_data.index, trend_line, 'r--', linewidth=2, label='Tendência (Sen\'s slope)')
+        
+        ax1.set_title('Série Temporal e Tendência')
+        ax1.set_xlabel('Ano')
+        ax1.set_ylabel(variable.title())
+        ax1.legend()
+        ax1.grid(True, alpha=0.3)
+        
+        # 2. Distribuição dos extremos
+        ax2 = axes[0, 1]
+        if self.extreme_data is not None:
+            ax2.hist(self.extreme_data, bins=15, density=True, alpha=0.7, color='skyblue', label='Dados observados')
+            
+            # Ajuste GEV
+            if variable in self.gev_params:
+                params = self.gev_params[variable]
+                x_range = np.linspace(self.extreme_data.min(), self.extreme_data.max(), 100)
+                gev_pdf = genextreme.pdf(x_range, params['shape'], 
+                                       loc=params['location'], scale=params['scale'])
+                ax2.plot(x_range, gev_pdf, 'r-', linewidth=2, label='GEV ajustada')
+        
+        ax2.set_title('Distribuição dos Extremos')
+        ax2.set_xlabel(variable.title())
+        ax2.set_ylabel('Densidade')
+        ax2.legend()
+        ax2.grid(True, alpha=0.3)
+        
+        # 3. Períodos de retorno
+        ax3 = axes[0, 2]
+        return_levels = self.calculate_return_periods(variable)
+        periods = list(return_levels.keys())
+        levels = list(return_levels.values())
+        
+        ax3.semilogx(periods, levels, 'ro-', linewidth=2, markersize=6)
+        ax3.set_title('Níveis de Retorno')
+        ax3.set_xlabel('Período de Retorno (anos)')
+        ax3.set_ylabel(f'{variable.title()}')
+        ax3.grid(True, alpha=0.3)
+        
+        # Adicionar valores nos pontos
+        for i, (period, level) in enumerate(zip(periods, levels)):
+            ax3.annotate(f'{level:.1f}', (period, level), 
+                        textcoords="offset points", xytext=(0,10), ha='center')
+        
+        # 4. Projeções futuras
+        ax4 = axes[1, 0]
+        projections = self.project_future_scenarios(variable)
+        
+        colors = ['green', 'orange', 'red']
+        for i, (scenario, data) in enumerate(projections.items()):
+            ax4.plot(data['years'], data['values'], 
+                    color=colors[i], linewidth=2, label=f'Cenário {scenario}')
+        
+        ax4.set_title('Projeções Futuras')
+        ax4.set_xlabel('Ano')
+        ax4.set_ylabel(variable.title())
+        ax4.legend()
+        ax4.grid(True, alpha=0.3)
+        
+        # 5. Boxplot anual para mostrar variabilidade
+        ax5 = axes[1, 1]
+        years_to_show = self.data['year'].unique()[-10:]  # Últimos 10 anos
+        data_subset = self.data[self.data['year'].isin(years_to_show)]
+        
+        box_data = [data_subset[data_subset['year'] == year][variable].values 
+                   for year in years_to_show]
+        
+        ax5.boxplot(box_data, labels=years_to_show)
+        ax5.set_title('Variabilidade Anual (Últimos 10 anos)')
+        ax5.set_xlabel('Ano')
+        ax5.set_ylabel(variable.title())
+        ax5.tick_params(axis='x', rotation=45)
+        ax5.grid(True, alpha=0.3)
+        
+        # 6. Mapa de calor mensal
+        ax6 = axes[1, 2]
+        monthly_avg = self.data.groupby(['year', 'month'])[variable].mean().reset_index()
+        monthly_pivot = monthly_avg.pivot(index='year', columns='month', values=variable)
+        
+        im = ax6.imshow(monthly_pivot.values, aspect='auto', cmap='RdYlBu_r', interpolation='nearest')
+        ax6.set_title('Padrão Mensal ao Longo dos Anos')
+        ax6.set_xlabel('Mês')
+        ax6.set_ylabel('Ano')
+        
+        # Configurar ticks
+        ax6.set_xticks(range(12))
+        ax6.set_xticklabels(['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'])
+        
+        years = monthly_pivot.index
+        ax6.set_yticks(range(0, len(years), 5))
+        ax6.set_yticklabels(years[::5])
+        
+        # Colorbar
+        plt.colorbar(im, ax=ax6, shrink=0.8)
+        
+        plt.tight_layout()
+        plt.show()
+    
