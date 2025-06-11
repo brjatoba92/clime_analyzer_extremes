@@ -529,3 +529,154 @@ class ClimateExtremeAnalyzer:
         print("\nRESUMO EXECUTIVO:")
         print(summary_df.to_string(index=False))
     
+# Exemplo de uso e demonstração completa
+if __name__ == "__main__":
+    print("🌡️ SISTEMA DE ANÁLISE DE EXTREMOS CLIMÁTICOS")
+    print("=" * 60)
+    
+    try:
+        # Criar analisador
+        print("\n1️⃣ Inicializando analisador...")
+        analyzer = ClimateExtremeAnalyzer()
+        
+        # Carregar dados (sintéticos para demonstração)
+        print("\n2️⃣ Carregando dados climáticos...")
+        data = analyzer.load_data()
+        print(f"   📊 Período: {data['year'].min()} - {data['year'].max()}")
+        print(f"   📈 Total de registros: {len(data):,}")
+        
+        # Mostrar estatísticas básicas
+        print("\n📋 ESTATÍSTICAS BÁSICAS:")
+        print("-" * 40)
+        for var in ['temperature', 'precipitation']:
+            mean_val = data[var].mean()
+            std_val = data[var].std()
+            min_val = data[var].min()
+            max_val = data[var].max()
+            print(f"{var.upper()}:")
+            print(f"  Média: {mean_val:.2f}")
+            print(f"  Desvio padrão: {std_val:.2f}")
+            print(f"  Mínimo: {min_val:.2f}")
+            print(f"  Máximo: {max_val:.2f}")
+            print()
+        
+        # Análise individual por variável
+        print("\n3️⃣ Executando análises detalhadas...")
+        
+        variables_to_analyze = ['temperature', 'precipitation']
+        results_summary = {}
+        
+        for i, variable in enumerate(variables_to_analyze, 1):
+            print(f"\n🔍 ANÁLISE {i}: {variable.upper()}")
+            print("-" * 50)
+            
+            # Extrair extremos
+            print(f"   Extraindo valores extremos...")
+            extremes = analyzer.extract_extremes(variable, method='block_maxima')
+            
+            # Ajustar distribuição GEV
+            print(f"   Ajustando distribuição GEV...")
+            gev_params = analyzer.fit_gev_distribution(variable)
+            
+            # Análise de tendências
+            print(f"   Analisando tendências (Mann-Kendall)...")
+            trend_result = analyzer.mann_kendall_test(variable)
+            
+            # Calcular períodos de retorno
+            print(f"   Calculando períodos de retorno...")
+            return_levels = analyzer.calculate_return_periods(variable)
+            
+            # Mostrar alguns resultados importantes
+            print(f"\n   📊 RESULTADOS PRINCIPAIS:")
+            print(f"   • Tendência: {trend_result['trend']}")
+            print(f"   • Sen's slope: {trend_result['sens_slope']:.6f}/ano")
+            print(f"   • Significativo: {'Sim' if trend_result['significant'] else 'Não'}")
+            print(f"   • Nível 50 anos: {return_levels[50]:.2f}")
+            print(f"   • Nível 100 anos: {return_levels[100]:.2f}")
+            
+            results_summary[variable] = {
+                'trend': trend_result['trend'],
+                'slope': trend_result['sens_slope'],
+                'significant': trend_result['significant'],
+                'return_50': return_levels[50],
+                'return_100': return_levels[100]
+            }
+        
+        # Projeções futuras
+        print(f"\n4️⃣ Gerando projeções futuras...")
+        for variable in variables_to_analyze:
+            projections = analyzer.project_future_scenarios(variable, future_years=30)
+            print(f"\n📈 PROJEÇÕES PARA {variable.upper()} (2054):")
+            for scenario, data in projections.items():
+                final_value = data['values'][-1]
+                print(f"   • Cenário {scenario}: {final_value:.2f}")
+        
+        # Avaliação de risco
+        print(f"\n5️⃣ Avaliação de riscos...")
+        risk_summary = {}
+        for variable in variables_to_analyze:
+            risk_assessment = analyzer.generate_risk_assessment(variable)
+            risk_summary[variable] = risk_assessment
+            print(f"\n⚠️  RISCO - {variable.upper()}:")
+            print(f"   • Risco de tendência: {risk_assessment['trend_risk']}")
+            print(f"   • Risco de extremos: {risk_assessment['extreme_risk']}")
+        
+        # Gerar relatório completo
+        print(f"\n6️⃣ Gerando relatório completo...")
+        report = analyzer.generate_climate_report(variables_to_analyze)
+        
+        # Exportar resultados
+        print(f"\n7️⃣ Exportando resultados...")
+        analyzer.export_results(report, 'analise_climatica_completa')
+        
+        # Resumo executivo final
+        print("\n" + "=" * 60)
+        print("📋 RESUMO EXECUTIVO FINAL")
+        print("=" * 60)
+        
+        print(f"\n🎯 PERÍODO ANALISADO: {data['year'].min()} - {data['year'].max()}")
+        print(f"📊 TOTAL DE DADOS: {len(data):,} registros")
+        
+        print(f"\n🌡️ TEMPERATURA:")
+        temp_results = results_summary['temperature']
+        print(f"   • Tendência: {temp_results['trend']} ({temp_results['slope']:.4f}°C/ano)")
+        print(f"   • Estatisticamente significativo: {'Sim' if temp_results['significant'] else 'Não'}")
+        print(f"   • Temperatura extrema esperada a cada 50 anos: {temp_results['return_50']:.1f}°C")
+        print(f"   • Temperatura extrema esperada a cada 100 anos: {temp_results['return_100']:.1f}°C")
+        
+        print(f"\n🌧️ PRECIPITAÇÃO:")
+        prec_results = results_summary['precipitation']
+        print(f"   • Tendência: {prec_results['trend']} ({prec_results['slope']:.4f} mm/ano)")
+        print(f"   • Estatisticamente significativo: {'Sim' if prec_results['significant'] else 'Não'}")
+        print(f"   • Precipitação extrema esperada a cada 50 anos: {prec_results['return_50']:.1f} mm")
+        print(f"   • Precipitação extrema esperada a cada 100 anos: {prec_results['return_100']:.1f} mm")
+        
+        print(f"\n⚠️ NÍVEIS DE RISCO:")
+        for variable, risk in risk_summary.items():
+            print(f"   {variable.upper()}:")
+            print(f"     - Risco de tendência: {risk['trend_risk']}")
+            print(f"     - Risco de extremos: {risk['extreme_risk']}")
+        
+        print(f"\n💡 RECOMENDAÇÕES PRINCIPAIS:")
+        all_recommendations = set()
+        for variable, risk in risk_summary.items():
+            for rec in risk['recommendations']:
+                all_recommendations.add(rec)
+        
+        for i, rec in enumerate(sorted(all_recommendations), 1):
+            print(f"   {i}. {rec}")
+        
+        print(f"\n✅ ANÁLISE COMPLETA FINALIZADA COM SUCESSO!")
+        print(f"📄 Relatório detalhado salvo em: 'analise_climatica_completa_summary.csv'")
+        print("🎨 Gráficos de análise foram gerados e exibidos.")
+        
+    except Exception as e:
+        print(f"\n❌ ERRO durante a execução: {str(e)}")
+        print("Verifique se todas as dependências estão instaladas:")
+        print("pip install numpy pandas matplotlib seaborn scipy pymannkendall")
+        
+    finally:
+        print(f"\n{'='*60}")
+        print("🌍 Obrigado por usar o Analisador de Extremos Climáticos!")
+        print("Para mais informações, consulte a documentação do código.")
+        print("="*60)

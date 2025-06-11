@@ -1,0 +1,3 @@
+Variable,Trend,Sen_Slope_per_year,Trend_Significant,Trend_Risk,Extreme_Risk,Return_50yr,Return_100yr
+temperature,increasing,0.05689549921221833,True,Médio,Baixo,42.34336955845192,43.587889580518116
+precipitation,no trend,-0.0017666187464968547,False,Baixo,Baixo,444.1333990344667,550.3438762226734
