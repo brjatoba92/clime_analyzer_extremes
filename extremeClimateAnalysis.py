@@ -454,3 +454,78 @@ class ClimateExtremeAnalyzer:
         plt.tight_layout()
         plt.show()
     
+    def generate_climate_report(self, variables=['temperature', 'precipitation']):
+        """
+        Gera relatório completo de análise climática
+        """
+        report = {
+            'data_period': f"{self.data['year'].min()} - {self.data['year'].max()}",
+            'total_records': len(self.data),
+            'variables_analyzed': variables,
+            'analyses': {}
+        }
+        
+        for variable in variables:
+            print(f"\n{'='*50}")
+            print(f"ANALISANDO: {variable.upper()}")
+            print(f"{'='*50}")
+            
+            # Extrair extremos e ajustar GEV
+            self.extract_extremes(variable)
+            self.fit_gev_distribution(variable)
+            
+            # Análise de tendência
+            trend_result = self.mann_kendall_test(variable)
+            
+            # Períodos de retorno
+            return_levels = self.calculate_return_periods(variable)
+            
+            # Projeções futuras
+            projections = self.project_future_scenarios(variable)
+            
+            # Avaliação de risco
+            risk_assessment = self.generate_risk_assessment(variable)
+            
+            # Armazenar resultados
+            report['analyses'][variable] = {
+                'gev_parameters': self.gev_params[variable],
+                'trend_analysis': trend_result,
+                'return_levels': return_levels,
+                'future_projections': projections,
+                'risk_assessment': risk_assessment
+            }
+            
+            # Gerar gráficos
+            self.plot_extreme_analysis(variable)
+        
+        return report
+    
+    def export_results(self, report, filename='climate_analysis_report'):
+        """
+        Exporta resultados para arquivo
+        """
+        # Criar DataFrame com resumo dos resultados
+        summary_data = []
+        
+        for variable, analysis in report['analyses'].items():
+            trend = analysis['trend_analysis']
+            risk = analysis['risk_assessment']
+            
+            summary_data.append({
+                'Variable': variable,
+                'Trend': trend['trend'],
+                'Sen_Slope_per_year': trend['sens_slope'],
+                'Trend_Significant': trend['significant'],
+                'Trend_Risk': risk['trend_risk'],
+                'Extreme_Risk': risk['extreme_risk'],
+                'Return_50yr': analysis['return_levels'][50],
+                'Return_100yr': analysis['return_levels'][100]
+            })
+        
+        summary_df = pd.DataFrame(summary_data)
+        summary_df.to_csv(f'{filename}_summary.csv', index=False)
+        
+        print(f"\nRelatório exportado para {filename}_summary.csv")
+        print("\nRESUMO EXECUTIVO:")
+        print(summary_df.to_string(index=False))
+    
