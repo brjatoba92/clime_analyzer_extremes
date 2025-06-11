@@ -110,3 +110,75 @@ class ClimateExtremeAnalyzer:
             'month': dates.month
         })
         print("Dados sintéticos gerados com sucesso!")
+    
+    def extract_extremes(self, variable='temperature', method='block_maxima', block_size='year'):
+        """
+        Extrai valores extremos usando diferentes métodos
+        """
+        if method == 'block_maxima':
+            if block_size == 'year':
+                extremes = self.data.groupby('year')[variable].max()
+            elif block_size == 'month':
+                extremes = self.data.groupby(['year', 'month'])[variable].max()
+            else:
+                raise ValueError("Block size deve ser 'year' ou 'month'")
+                
+        elif method == 'peaks_over_threshold':
+            # Método POT (Peaks Over Threshold)
+            threshold = np.percentile(self.data[variable], 95)  # Top 5%
+            extremes = self.data[self.data[variable] > threshold][variable]
+            
+        self.extreme_data = extremes
+        print(f"Extraídos {len(extremes)} valores extremos usando método {method}")
+        return extremes
+    
+    def fit_gev_distribution(self, variable='temperature'):
+        """
+        Ajusta distribuição GEV (Generalized Extreme Value) aos dados extremos
+        """
+        if self.extreme_data is None:
+            self.extract_extremes(variable)
+        
+        # Ajustar distribuição GEV
+        gev_params = genextreme.fit(self.extreme_data)
+        
+        self.gev_params[variable] = {
+            'shape': gev_params[0],    # parâmetro de forma (xi)
+            'location': gev_params[1], # parâmetro de localização (mu)
+            'scale': gev_params[2]     # parâmetro de escala (sigma)
+        }
+        
+        # Teste de ajuste Kolmogorov-Smirnov
+        ks_stat, ks_p_value = stats.kstest(self.extreme_data, 
+                                          lambda x: genextreme.cdf(x, *gev_params))
+        
+        print(f"Parâmetros GEV para {variable}:")
+        print(f"  Forma (ξ): {gev_params[0]:.4f}")
+        print(f"  Localização (μ): {gev_params[1]:.4f}")
+        print(f"  Escala (σ): {gev_params[2]:.4f}")
+        print(f"  Teste KS: estatística = {ks_stat:.4f}, p-valor = {ks_p_value:.4f}")
+        
+        return gev_params
+    
+    def calculate_return_periods(self, variable='temperature', return_periods=[2, 5, 10, 25, 50, 100]):
+        """
+        Calcula períodos de retorno para diferentes níveis
+        """
+        if variable not in self.gev_params:
+            self.fit_gev_distribution(variable)
+        
+        params = self.gev_params[variable]
+        shape, loc, scale = params['shape'], params['location'], params['scale']
+        
+        return_levels = {}
+        
+        for T in return_periods:
+            # Fórmula para período de retorno usando GEV
+            if abs(shape) < 1e-6:  # Gumbel (shape ≈ 0)
+                level = loc - scale * np.log(-np.log(1 - 1/T))
+            else:  # GEV geral
+                level = loc + (scale/shape) * ((-np.log(1 - 1/T))**(-shape) - 1)
+            
+            return_levels[T] = level
+        
+        return return_levels
