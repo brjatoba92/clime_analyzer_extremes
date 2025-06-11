@@ -182,3 +182,78 @@ class ClimateExtremeAnalyzer:
             return_levels[T] = level
         
         return return_levels
+    
+    def mann_kendall_test(self, variable='temperature', alpha=0.05):
+        """
+        Realiza teste de Mann-Kendall para detectar tendências
+        """
+        annual_data = self.data.groupby('year')[variable].mean()
+        
+        # Teste Mann-Kendall
+        mk_result = mk_test(annual_data.values)
+        
+        # Sen's slope (estimativa robusta da inclinação)
+        n = len(annual_data)
+        slopes = []
+        
+        for i in range(n-1):
+            for j in range(i+1, n):
+                slope = (annual_data.iloc[j] - annual_data.iloc[i]) / (j - i)
+                slopes.append(slope)
+        
+        sens_slope = np.median(slopes)
+        
+        self.trends[variable] = {
+            'trend': mk_result.trend,
+            'p_value': mk_result.p,
+            'z_score': mk_result.z,
+            'sens_slope': sens_slope,
+            'significant': mk_result.p < alpha
+        }
+        
+        print(f"Análise de tendência para {variable}:")
+        print(f"  Tendência: {mk_result.trend}")
+        print(f"  Sen's slope: {sens_slope:.6f} por ano")
+        print(f"  Z-score: {mk_result.z:.4f}")
+        print(f"  P-valor: {mk_result.p:.6f}")
+        print(f"  Significativo (α={alpha}): {mk_result.p < alpha}")
+        
+        return self.trends[variable]
+    
+    def project_future_scenarios(self, variable='temperature', future_years=30, scenarios=None):
+        """
+        Gera projeções de cenários futuros baseadas em tendências
+        """
+        if scenarios is None:
+            scenarios = {
+                'Baixo': 0.5,    # Fator de multiplicação da tendência atual
+                'Médio': 1.0,    # Tendência atual mantida
+                'Alto': 1.5      # Tendência acelerada
+            }
+        
+        if variable not in self.trends:
+            self.mann_kendall_test(variable)
+        
+        current_trend = self.trends[variable]['sens_slope']
+        current_year = self.data['year'].max()
+        future_years_range = range(current_year + 1, current_year + future_years + 1)
+        
+        # Valor base (média dos últimos 5 anos)
+        base_value = self.data[self.data['year'] >= current_year - 4].groupby('year')[variable].mean().mean()
+        
+        projections = {}
+        
+        for scenario_name, factor in scenarios.items():
+            yearly_change = current_trend * factor
+            projection = []
+            
+            for i, year in enumerate(future_years_range):
+                projected_value = base_value + (yearly_change * (i + 1))
+                projection.append(projected_value)
+            
+            projections[scenario_name] = {
+                'years': list(future_years_range),
+                'values': projection
+            }
+        
+        return projections
